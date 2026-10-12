@@ -13,7 +13,7 @@ function readFailOn(minimumScore: number | null): FailOn {
   if (raw !== '') {
     core.warning(`Unknown fail-on value "${raw}". Falling back to the default.`);
   }
-  // Default: honour a score floor when one was given, otherwise gate on regressions.
+  // Default: honour a minimum score when one was given, otherwise watch for regressions.
   return minimumScore === null ? 'regression' : 'both';
 }
 
@@ -135,26 +135,26 @@ async function run(): Promise<void> {
     }
   }
 
-  // ── Gate ──
+  // ── Decide whether to fail the build ──
   const reasons: string[] = [];
   const regressedCount = detail ? detail.regressed.length : null;
 
-  const scoreGateOn = failOn === 'score' || failOn === 'both';
-  const regressionGateOn = failOn === 'regression' || failOn === 'both';
+  const checkScore = failOn === 'score' || failOn === 'both';
+  const checkRegressions = failOn === 'regression' || failOn === 'both';
 
-  if (scoreGateOn && minimumScore !== null && summary.score < minimumScore) {
+  if (checkScore && minimumScore !== null && summary.score < minimumScore) {
     reasons.push(`Score ${summary.score} is below the minimum of ${minimumScore}.`);
   }
-  if (scoreGateOn && minimumScore === null) {
-    core.warning('fail-on includes "score" but no minimum-score was set, so no score floor is enforced.');
+  if (checkScore && minimumScore === null) {
+    core.warning('fail-on includes "score" but no minimum-score was set, so nothing is checked against.');
   }
-  if (!scoreGateOn && minimumScore !== null) {
-    core.warning(`minimum-score is set but fail-on is "${failOn}", so the score floor is not enforced.`);
+  if (!checkScore && minimumScore !== null) {
+    core.warning(`minimum-score is set but fail-on is "${failOn}", so the score is not checked.`);
   }
 
-  if (regressionGateOn) {
+  if (checkRegressions) {
     if (regressedCount === null) {
-      core.warning('Regression gating needs detailed results, which this plan does not include. Skipping that check.');
+      core.info('Checking for new problems needs the detailed results that come with Pro and Agency, so this run checked the score only.');
     } else if (regressedCount > 0) {
       reasons.push(
         `${regressedCount} ${regressedCount === 1 ? 'check' : 'checks'} regressed since the previous scan of this URL.`
