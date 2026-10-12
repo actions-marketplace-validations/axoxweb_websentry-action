@@ -116,7 +116,7 @@ Two times the comment is skipped. Neither one fails your build, and the result i
 - A check takes about 10 to 30 seconds and counts as one scan on your WebSentry plan.
 - Checking the same address twice within an hour returns the earlier result instead of scanning again.
 - Seeing which exact checks changed comes with Pro and Agency. On the free plan the action still reports the score and grade, and says so in the summary.
-- Runs on `node20` and uses the public [`websentry-api`](https://www.npmjs.com/package/websentry-api) client, the same one you can call yourself.
+- Runs on `node24` and uses the public [`websentry-api`](https://www.npmjs.com/package/websentry-api) client, the same one you can call yourself.
 
 ## License
 
