@@ -48,5 +48,5 @@ outputs:
     description: 'Number of checks that were fixed since the previous scan of this URL.'
 
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
