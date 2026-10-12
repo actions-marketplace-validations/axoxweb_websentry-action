@@ -1,5 +1,5 @@
 name: 'WebSentry Security Scan'
-description: 'Scan a deployed site with WebSentry and gate the build on its security grade.'
+description: 'Check your site security after it deploys and fail the build if the deploy made it worse.'
 author: 'AXOX Web Solutions'
 
 branding:

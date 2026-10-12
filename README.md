@@ -1,12 +1,14 @@
 # WebSentry Security Scan
 
-A GitHub Action that scans a deployed site with [WebSentry](https://websentry.dev) and fails the build when a deploy makes security worse.
+A GitHub Action that checks your site's security after it deploys, and tells you in the pull request if the deploy made anything worse.
 
-It gates on **regressions by default**, not on absolute grades. A site that has carried the same weak Content Security Policy since last year will not break every build; a deploy that newly removes a security header will.
+It uses [WebSentry](https://websentry.dev) to scan the live page: headers, TLS, cookies, content security policy, and the rest. You get a score out of 100 and a letter grade.
+
+**By default it only fails your build when a deploy breaks something new.** If your site has had the same weak setting for a year, every build still passes; the day a change removes a security header, the build goes red. That way the check stays useful instead of becoming the one everybody ignores.
 
 ## Quick start
 
-Scan every successful deployment, including preview deployments from Vercel, Netlify, and Cloudflare Pages:
+Check every deploy, including preview deploys from Vercel, Netlify, and Cloudflare Pages:
 
 ```yaml
 name: WebSentry
@@ -29,7 +31,7 @@ jobs:
           api-key: ${{ secrets.WEBSENTRY_API_KEY }}
 ```
 
-Or scan a fixed URL on a schedule or on demand:
+Or check one address on a schedule, and require a minimum score:
 
 ```yaml
 on:
@@ -48,37 +50,45 @@ jobs:
           minimum-score: 80
 ```
 
-Get a key from your [WebSentry dashboard](https://websentry.dev/dashboard) and store it as a repository secret.
+## Getting a key
 
-## Inputs
+Open your [WebSentry dashboard](https://websentry.dev/dashboard), go to the API tab, and create a key. Then add it to your repository under **Settings → Secrets and variables → Actions** as `WEBSENTRY_API_KEY`.
 
-| Input | Required | Default | Description |
+**Every plan can do this, including the free one.** Free accounts get a CI key, which starts scans and nothing else. Paid plans get a full key that also reads results as JSON and manages monitors.
+
+Checks count against the scans included in your plan, whichever key you use.
+
+## Settings
+
+| Setting | Required | Default | What it does |
 | --- | --- | --- | --- |
-| `url` | yes | | The deployed URL to scan. A bare domain works; `https://` is assumed. |
-| `api-key` | yes | | WebSentry CI key or API key. Always pass this from a secret. |
-| `minimum-score` | no | | Fail when the score is below this number, 0 to 100. |
-| `fail-on` | no | see below | `none`, `regression`, `score`, or `both`. |
-| `comment` | no | `true` | Post or update a comment on the pull request. |
-| `github-token` | no | `${{ github.token }}` | Token used for the comment. Needs `pull-requests: write`. |
-| `api-url` | no | `https://websentry.dev` | Override the WebSentry base URL. |
+| `url` | yes | | The address to check. A bare domain is fine, `https://` is added for you. |
+| `api-key` | yes | | Your WebSentry key. Always pass it from a secret, never type it in the file. |
+| `minimum-score` | no | | Fail if the score drops below this number, 0 to 100. |
+| `fail-on` | no | see below | When to fail the build. |
+| `comment` | no | `true` | Keep a comment on the pull request with the result. |
+| `github-token` | no | `${{ github.token }}` | Used to write that comment. |
+| `api-url` | no | `https://websentry.dev` | Point at a different WebSentry install. |
 
-`fail-on` left empty means `both` when you set a `minimum-score`, and `regression` otherwise. Set it explicitly to be unambiguous:
+### When it fails the build
 
-- `regression`: fail only when this deploy introduced new findings.
-- `score`: fail only when the score falls below `minimum-score`.
-- `both`: either condition fails the build.
-- `none`: never fail, just report. Useful while you are getting a baseline.
+- `regression`: only when this deploy broke something that worked before. This is the default.
+- `score`: only when the score is under your `minimum-score`.
+- `both`: either of the above.
+- `none`: never fail, just report. Good for the first week while you see what it finds.
 
-## Outputs
+Leave `fail-on` out and it picks for you: `both` if you set a `minimum-score`, otherwise `regression`.
 
-| Output | Description |
+## What you get back
+
+| Value | What it is |
 | --- | --- |
-| `score` | Security score out of 100. |
-| `grade` | Letter grade, for example `A`. |
-| `scan-id` | Identifier of the scan that ran. |
+| `score` | The score out of 100. |
+| `grade` | The letter grade, such as `A`. |
+| `scan-id` | The id of this check. |
 | `report-url` | Link to the full report. |
-| `new-findings` | Checks that regressed since the previous scan. |
-| `fixed-findings` | Checks fixed since the previous scan. |
+| `new-findings` | How many things this deploy broke. |
+| `fixed-findings` | How many things this deploy fixed. |
 
 Use them in later steps:
 
@@ -89,31 +99,24 @@ Use them in later steps:
           url: https://example.com
           api-key: ${{ secrets.WEBSENTRY_API_KEY }}
           fail-on: none
-      - run: echo "Scored ${{ steps.websentry.outputs.score }} with ${{ steps.websentry.outputs.new-findings }} new findings"
+      - run: echo "Scored ${{ steps.websentry.outputs.score }}, ${{ steps.websentry.outputs.new-findings }} new problems"
 ```
 
-## Pull request comments
+## The pull request comment
 
-When the run belongs to a pull request, the action keeps a single comment up to date rather than adding one per commit. It finds the pull request from the event payload, or from the commit when the run came from a `deployment_status` event.
+When the run belongs to a pull request, you get one comment that updates itself. A pull request with forty commits has one current comment, not forty old ones.
 
-Two cases where the comment is skipped, both by design and neither fails the build:
+Two times the comment is skipped. Neither one fails your build, and the result is always in the job summary either way:
 
-- **Pull requests from forks** receive a read only token, so no comment can be written.
-- **Missing permissions**: add `permissions: pull-requests: write` to the workflow.
+- **Pull requests from someone else's fork.** GitHub only gives those runs read access, so nothing can write a comment.
+- **Missing permission.** Add `permissions: pull-requests: write` to your workflow.
 
-The job summary always carries the full result either way.
+## Good to know
 
-## Plans
-
-Scanning, the score, the grade, and the `minimum-score` gate work with any key.
-
-Detailed results, meaning which checks regressed and the category breakdown, are part of the Pro and Agency plans. On a plan without them the action still scans and still gates on score; it says so in the job summary instead of failing.
-
-## Notes
-
-- A scan takes roughly 10 to 30 seconds and counts against your WebSentry monthly quota.
-- Scanning the same URL twice within an hour returns the cached result, so a retried workflow does not re-scan the site.
-- The action runs on `node20` and calls the public [`websentry-api`](https://www.npmjs.com/package/websentry-api) client, the same SDK you can use directly.
+- A check takes about 10 to 30 seconds and counts as one scan on your WebSentry plan.
+- Checking the same address twice within an hour returns the earlier result instead of scanning again.
+- Seeing which exact checks changed comes with Pro and Agency. On the free plan the action still reports the score and grade, and says so in the summary.
+- Runs on `node20` and uses the public [`websentry-api`](https://www.npmjs.com/package/websentry-api) client, the same one you can call yourself.
 
 ## License
 
