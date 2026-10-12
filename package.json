@@ -1,0 +1,33 @@
+{
+  "name": "websentry-action",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GitHub Action that scans a deployed site with WebSentry and gates the build on its security grade.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc --noEmit && ncc build src/index.ts -o dist --minify",
+    "check": "tsc --noEmit"
+  },
+  "keywords": [
+    "github-action",
+    "security",
+    "websentry",
+    "ci"
+  ],
+  "license": "MIT",
+  "author": "AXOX Web Solutions <support@websentry.dev>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/axoxweb/websentry-action.git"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0",
+    "websentry-api": "^1.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vercel/ncc": "^0.38.3",
+    "typescript": "^5.6.0"
+  }
+}

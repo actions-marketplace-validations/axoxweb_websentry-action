@@ -1,0 +1,52 @@
+name: 'WebSentry Security Scan'
+description: 'Scan a deployed site with WebSentry and gate the build on its security grade.'
+author: 'AXOX Web Solutions'
+
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  url:
+    description: 'The deployed URL to scan, for example a production or preview URL.'
+    required: true
+  api-key:
+    description: 'WebSentry CI key or API key. Always pass this from a secret.'
+    required: true
+  minimum-score:
+    description: 'Fail the build when the score falls below this number (0 to 100). Leave empty to skip the score floor.'
+    required: false
+  fail-on:
+    description: 'When to fail the build: none, regression, score, or both. Regression fails only when this deploy introduced new findings. Left empty it means both when minimum-score is set, and regression otherwise.'
+    required: false
+    default: ''
+  comment:
+    description: 'Post or update a comment on the pull request when the run belongs to one.'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'Token used to post the pull request comment. Needs pull-requests: write.'
+    required: false
+    default: ${{ github.token }}
+  api-url:
+    description: 'Override the WebSentry base URL. For self-hosted or staging setups.'
+    required: false
+    default: 'https://websentry.dev'
+
+outputs:
+  score:
+    description: 'Security score out of 100.'
+  grade:
+    description: 'Letter grade, for example A or C.'
+  scan-id:
+    description: 'Identifier of the scan that ran.'
+  report-url:
+    description: 'Link to the full report.'
+  new-findings:
+    description: 'Number of checks that regressed since the previous scan of this URL.'
+  fixed-findings:
+    description: 'Number of checks that were fixed since the previous scan of this URL.'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
